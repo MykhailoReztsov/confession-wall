@@ -5,7 +5,7 @@ import { copyToClipboard } from '../lib/utils'
 
 const MAX = 280
 
-export default function ConfessionForm({ account, isOnBase, onSubmit, onGetGasEstimate }) {
+export default function ConfessionForm({ account, isOnBase, onSubmit, onGetGasEstimate, sessionWallet, onOpenSessionModal }) {
   const [text, setText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [gasEstimate, setGasEstimate] = useState(null)
@@ -144,6 +144,20 @@ export default function ConfessionForm({ account, isOnBase, onSubmit, onGetGasEs
               )}
             </AnimatePresence>
           </div>
+
+          {/* Auto-sign status */}
+          {onOpenSessionModal && (
+            <div className="flex items-center justify-between mt-3">
+              <button
+                type="button"
+                onClick={onOpenSessionModal}
+                className="flex items-center gap-2 font-['JetBrains_Mono'] text-[10px] uppercase tracking-widest text-white/25 hover:text-white/55 transition-colors"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${sessionWallet?.isActive ? 'bg-emerald-400 animate-pulse' : 'bg-white/15'}`} />
+                {sessionWallet?.isActive ? 'Auto-sign active' : 'Set up auto-sign'}
+              </button>
+            </div>
+          )}
 
           {/* Submit button */}
           <div className="mt-6 pt-6 border-t border-white/5">

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { shortAddress, timeAgo } from '../lib/utils'
 import { getStoredHue } from '../hooks/useProfile'
-import { useLikes } from '../hooks/useLikes'
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 export function BaseAvatar({ address, size = 36, clickable = false, onClick }) {
@@ -107,16 +106,23 @@ function ReplyForm({ onSubmit, onCancel, disabled }) {
 }
 
 // ─── Main confession card ─────────────────────────────────────────────────────
-export default function ConfessionCard({ confession, index, account, isOnBase, onReply, repliesTo }) {
+export default function ConfessionCard({ confession, index, account, isOnBase, onReply, onLike, repliesTo }) {
   const navigate = useNavigate()
   const [repliesOpen, setRepliesOpen] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const { isLiked, toggle } = useLikes()
+  const [liking, setLiking] = useState(false)
 
   const replies = repliesTo ? repliesTo(confession.id) : []
   const canReply = account && isOnBase
-  const liked = isLiked(confession.id)
+  const liked = confession.liked ?? false
+
+  const handleLike = async () => {
+    if (!onLike || liking || liked) return
+    setLiking(true)
+    try { await onLike(confession.id) } catch {}
+    finally { setLiking(false) }
+  }
 
   const handleReply = async (text) => {
     setSubmitting(true)
@@ -165,15 +171,16 @@ export default function ConfessionCard({ confession, index, account, isOnBase, o
 
           {/* ── Action row ── */}
           <div className="flex items-center gap-5 mt-3">
-            {/* Like button — localStorage, no transaction */}
+            {/* Like button — EIP-712 signed, verified on backend */}
             <button
-              onClick={() => toggle(confession.id)}
-              className={`flex items-center gap-1 transition-colors ${
-                liked ? 'text-red-400/80' : 'text-white/35 hover:text-red-400/60'
+              onClick={handleLike}
+              disabled={liking || liked}
+              className={`flex items-center gap-1.5 transition-colors ${
+                liked ? 'text-red-400/80 cursor-default' : 'text-white/35 hover:text-red-400/60'
               }`}
             >
               <svg
-                className="w-3 h-3 transition-transform active:scale-125"
+                className={`w-3 h-3 transition-transform ${liking ? 'scale-125' : ''}`}
                 viewBox="0 0 24 24"
                 fill={liked ? 'currentColor' : 'none'}
                 stroke="currentColor"
@@ -181,6 +188,9 @@ export default function ConfessionCard({ confession, index, account, isOnBase, o
               >
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
+              {(confession.likeCount > 0) && (
+                <span className="font-['JetBrains_Mono'] text-[10px]">{confession.likeCount}</span>
+              )}
             </button>
             {/* Replies toggle */}
             <button
