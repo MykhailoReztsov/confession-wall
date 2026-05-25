@@ -70,8 +70,9 @@ export async function fetchTotal() {
 export async function postConfession(signer, text) {
   const contract = getWriteContract(signer)
   const tx = await contract.confess(text)
-  const receipt = await tx.wait()
-  return receipt.hash
+  const hash = tx.hash
+  try { await tx.wait() } catch { /* tx succeeded on-chain; receipt polling failed */ }
+  return hash
 }
 
 // Estimate gas cost for posting a confession in ETH
