@@ -10,8 +10,8 @@ export default function Home({ wallet }) {
   const { account, signer, isOnBase } = wallet
   const {
     confessions, loading, error, total,
-    submitConfession, getGasEstimate, refresh, repliesTo,
-  } = useConfessions(signer)
+    submitConfession, likePost, getGasEstimate, refresh, repliesTo,
+  } = useConfessions(signer, account)
 
   const handleReply = useCallback((id, text) =>
     submitConfession(`↩ #${id}: ${text}`),
@@ -50,6 +50,7 @@ export default function Home({ wallet }) {
             account={account}
             isOnBase={isOnBase}
             onReply={handleReply}
+            onLike={likePost}
             onRefresh={refresh}
             repliesTo={repliesTo}
           />

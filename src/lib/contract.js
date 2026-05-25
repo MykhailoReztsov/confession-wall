@@ -75,6 +75,27 @@ export async function postConfession(signer, text) {
   return hash
 }
 
+// Batch-fetch like counts + whether `liker` has liked each confession
+export async function fetchLikesForRange(totalCount, liker) {
+  if (totalCount === 0) return { counts: [], liked: [] }
+  const contract = getReadContract()
+  const zero = '0x0000000000000000000000000000000000000000'
+  const [counts, liked] = await contract.getLikesForRange(0, totalCount, liker || zero)
+  return {
+    counts: Array.from(counts).map(Number),
+    liked: Array.from(liked),
+  }
+}
+
+// Like a confession — one per wallet enforced on-chain
+export async function likeConfession(signer, confessionId) {
+  const contract = getWriteContract(signer)
+  const tx = await contract.like(confessionId)
+  const hash = tx.hash
+  try { await tx.wait() } catch {}
+  return hash
+}
+
 // Estimate gas cost for posting a confession in ETH
 export async function estimateGasCost(signer, text) {
   try {

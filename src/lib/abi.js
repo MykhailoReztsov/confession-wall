@@ -66,6 +66,35 @@ export const CONFESSION_WALL_ABI = [
     stateMutability: 'view',
   },
   {
+    type: 'function',
+    name: 'like',
+    inputs: [{ name: 'id', type: 'uint256', internalType: 'uint256' }],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'getLikesForRange',
+    inputs: [
+      { name: 'start',  type: 'uint256', internalType: 'uint256' },
+      { name: 'count',  type: 'uint256', internalType: 'uint256' },
+      { name: 'liker',  type: 'address', internalType: 'address' },
+    ],
+    outputs: [
+      { name: 'counts', type: 'uint256[]', internalType: 'uint256[]' },
+      { name: 'liked',  type: 'bool[]',    internalType: 'bool[]'    },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    name: 'Liked',
+    inputs: [
+      { name: 'id',    type: 'uint256', indexed: true,  internalType: 'uint256' },
+      { name: 'liker', type: 'address', indexed: true,  internalType: 'address' },
+    ],
+  },
+  {
     type: 'event',
     name: 'NewConfession',
     inputs: [

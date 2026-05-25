@@ -3,7 +3,7 @@ import ConfessionCard from './ConfessionCard'
 
 export default function ConfessionWall({
   confessions, loading, error, total, onRefresh,
-  account, isOnBase, onReply, repliesTo,
+  account, isOnBase, onReply, onLike, repliesTo,
 }) {
   const topLevel = confessions.filter(c => !c.text.startsWith('↩ #'))
 
@@ -107,6 +107,7 @@ export default function ConfessionWall({
                 account={account}
                 isOnBase={isOnBase}
                 onReply={onReply}
+                onLike={onLike}
                 repliesTo={repliesTo}
               />
             ))}
