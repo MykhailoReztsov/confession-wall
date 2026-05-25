@@ -16,10 +16,10 @@ export const CONFESSION_WALL_ABI = [
   },
   {
     type: 'function',
-    name: 'getConfessions',
+    name: 'getRange',
     inputs: [
-      { name: 'startIndex', type: 'uint256', internalType: 'uint256' },
-      { name: 'limit',      type: 'uint256', internalType: 'uint256' },
+      { name: 'start', type: 'uint256', internalType: 'uint256' },
+      { name: 'count', type: 'uint256', internalType: 'uint256' },
     ],
     outputs: [
       {
@@ -38,69 +38,18 @@ export const CONFESSION_WALL_ABI = [
   },
   {
     type: 'function',
-    name: 'getRange',
-    inputs: [
-      { name: 'start', type: 'uint256', internalType: 'uint256' },
-      { name: 'count', type: 'uint256', internalType: 'uint256' },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'tuple[]',
-        internalType: 'struct ConfessionWall.Confession[]',
-        components: [
-          { name: 'id', type: 'uint256', internalType: 'uint256' },
-          { name: 'author', type: 'address', internalType: 'address' },
-          { name: 'text', type: 'string', internalType: 'string' },
-          { name: 'timestamp', type: 'uint256', internalType: 'uint256' },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'MAX_LENGTH',
     inputs: [],
     outputs: [{ name: '', type: 'uint256', internalType: 'uint256' }],
     stateMutability: 'view',
   },
   {
-    type: 'function',
-    name: 'like',
-    inputs: [{ name: 'id', type: 'uint256', internalType: 'uint256' }],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'getLikesForRange',
-    inputs: [
-      { name: 'start',  type: 'uint256', internalType: 'uint256' },
-      { name: 'count',  type: 'uint256', internalType: 'uint256' },
-      { name: 'liker',  type: 'address', internalType: 'address' },
-    ],
-    outputs: [
-      { name: 'counts', type: 'uint256[]', internalType: 'uint256[]' },
-      { name: 'liked',  type: 'bool[]',    internalType: 'bool[]'    },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'event',
-    name: 'Liked',
-    inputs: [
-      { name: 'id',    type: 'uint256', indexed: true,  internalType: 'uint256' },
-      { name: 'liker', type: 'address', indexed: true,  internalType: 'address' },
-    ],
-  },
-  {
     type: 'event',
     name: 'NewConfession',
     inputs: [
-      { name: 'id', type: 'uint256', indexed: true, internalType: 'uint256' },
-      { name: 'author', type: 'address', indexed: true, internalType: 'address' },
-      { name: 'text', type: 'string', indexed: false, internalType: 'string' },
+      { name: 'id',        type: 'uint256', indexed: true,  internalType: 'uint256' },
+      { name: 'author',    type: 'address', indexed: true,  internalType: 'address' },
+      { name: 'text',      type: 'string',  indexed: false, internalType: 'string'  },
       { name: 'timestamp', type: 'uint256', indexed: false, internalType: 'uint256' },
     ],
   },
