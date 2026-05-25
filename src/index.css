@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: #0a0a0a;
+    color: #e5e2e1;
+    -webkit-font-smoothing: antialiased;
+    font-family: 'Geist', 'Inter', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: rgba(255,255,255,0.15); color: #fff; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #050505; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+}
+
+@layer components {
+  /* Grain texture overlay */
+  .grain-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.045;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+    mix-blend-mode: overlay;
+  }
+
+  /* Glass morphism card */
+  .glass-panel {
+    background: rgba(8, 8, 8, 0.65);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 60px rgba(0,0,0,0.9), inset 0 0 30px rgba(255,255,255,0.015);
+  }
+
+  /* Bottom-border only input */
+  .glass-input {
+    background: rgba(5, 5, 5, 0.8);
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    color: #e5e2e1;
+    transition: border-color 0.3s ease, background 0.3s ease;
+    resize: none;
+    width: 100%;
+    outline: none;
+  }
+  .glass-input:focus {
+    border-bottom-color: rgba(255, 255, 255, 0.55);
+    background: rgba(10, 10, 10, 0.9);
+    box-shadow: 0 4px 20px -3px rgba(255,255,255,0.04);
+  }
+  .glass-input::placeholder { color: rgba(229,226,225,0.2); }
+
+  /* Neon title flicker */
+  .toxic-glow {
+    text-shadow: 0 0 20px rgba(255,255,255,0.4), 0 0 40px rgba(255,255,255,0.15);
+    animation: textFlicker 5s infinite alternate;
+  }
+
+  /* Submit button — white solid */
+  .btn-submit {
+    background: #fff;
+    color: #0a0a0a;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    text-transform: uppercase;
+    border: none;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 0;
+    width: 100%;
+  }
+  .btn-submit:hover {
+    background: #e8e8e8;
+    box-shadow: 0 0 30px rgba(255,255,255,0.35);
+  }
+  .btn-submit:active { transform: scale(0.98); }
+  .btn-submit:disabled {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.3);
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  /* Old glass-card alias kept for compatibility */
+  .glass-card {
+    @apply glass-panel rounded-none;
+  }
+
+  .btn-primary {
+    @apply px-6 py-2.5 text-sm font-semibold text-black bg-white border border-white/20 transition-all duration-200 uppercase tracking-widest;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+  .btn-primary:hover { background: #e8e8e8; }
+}
+
+@keyframes textFlicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+  20%, 24%, 55% { opacity: 0.75; }
+  22% { opacity: 0.35; text-shadow: none; }
+}
