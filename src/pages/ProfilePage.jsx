@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ethers } from 'ethers'
 import Layout from '../components/Layout'
 import { BaseAvatar } from '../components/ConfessionCard'
 import { shortAddress, timeAgo, copyToClipboard } from '../lib/utils'
-import { fetchAllConfessions, fetchGasBurnedByAddress } from '../lib/contract'
+import { fetchAllConfessions } from '../lib/contract'
 import { defaultHue, getStoredHue } from '../hooks/useProfile'
 import { fetchProfile, signAndSetBio, signAndSetHue, signAndFollow, signAndUnfollow } from '../lib/social'
 import toast from 'react-hot-toast'
@@ -61,9 +60,10 @@ function StatPill({ label, value, loading: lding }) {
   )
 }
 
-function GasPill({ weiValue, loading: lding }) {
-  const gwei = weiValue != null ? Number(ethers.formatUnits(weiValue, 'gwei')) : null
-  const gweiRounded = gwei != null ? (gwei >= 100 ? Math.round(gwei) : Math.round(gwei * 10) / 10) : null
+function GasPill({ gweiValue, loading: lding }) {
+  const gweiRounded = gweiValue != null
+    ? (gweiValue >= 100 ? Math.round(gweiValue) : Math.round(gweiValue * 10) / 10)
+    : null
   return (
     <div className="flex flex-col items-center gap-1 px-5 py-3 border border-white/8 glass-panel">
       <span className="font-['JetBrains_Mono'] text-[9px] uppercase tracking-[0.2em] text-white/30">Gas Burned</span>
@@ -110,7 +110,7 @@ export default function ProfilePage({ wallet }) {
   const [confessions, setConfessions] = useState([])
   const [loadingPosts, setLoadingPosts] = useState(true)
 
-  // Gas burned
+  // Gas burned (gwei as number)
   const [gasBurned, setGasBurned]       = useState(null)
   const [gasLoading, setGasLoading]     = useState(true)
 
@@ -145,14 +145,15 @@ export default function ProfilePage({ wallet }) {
     return () => { alive = false }
   }, [address])
 
-  // Load gas burned separately (slower — needs receipts)
+  // Load gas burned via server-side API (needs receipts, heavy for browser RPC)
   useEffect(() => {
     if (!address) return
     let alive = true
     setGasLoading(true)
-    fetchGasBurnedByAddress(address)
-      .then(val => { if (alive) setGasBurned(val) })
-      .catch(() => { if (alive) setGasBurned(0n) })
+    fetch(`/api/gas?address=${address}`)
+      .then(r => r.json())
+      .then(d => { if (alive) setGasBurned(d.gwei ?? 0) })
+      .catch(() => { if (alive) setGasBurned(0) })
       .finally(() => { if (alive) setGasLoading(false) })
     return () => { alive = false }
   }, [address])
@@ -310,7 +311,7 @@ export default function ProfilePage({ wallet }) {
                   <StatPill label="Confessions" value={topLevel.length} />
                   <StatPill label="Following"   value={profileLoading ? undefined : profile.followingCount} loading={profileLoading} />
                   <StatPill label="Followers"   value={profileLoading ? undefined : profile.followerCount}  loading={profileLoading} />
-                  <GasPill  weiValue={gasBurned} loading={gasLoading} />
+                  <GasPill  gweiValue={gasBurned} loading={gasLoading} />
                   <StatPill
                     label="Oldest"
                     value={oldest ? timeAgo(oldest.timestamp) : '—'}
