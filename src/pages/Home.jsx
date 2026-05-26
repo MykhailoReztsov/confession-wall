@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useConfessions } from '../hooks/useConfessions'
 import { useSessionWallet } from '../hooks/useSessionWallet'
+import { postConfession } from '../lib/contract'
 import Layout from '../components/Layout'
 import Hero from '../components/Hero'
 import ConfessionForm from '../components/ConfessionForm'
@@ -13,27 +14,40 @@ export default function Home({ wallet }) {
   const { account, signer, isOnBase } = wallet
   const sessionWallet = useSessionWallet()
 
-  // Use session wallet for posting when funded, otherwise fall back to MetaMask
-  const activeSigner  = sessionWallet.isActive ? sessionWallet.signer : signer
-  // Likes are always signed by the session wallet key (no ETH needed)
-  const likerAddress  = sessionWallet.address || account
+  // Keep refs so callbacks always read the latest values without stale closures
+  const sessionWalletRef = useRef(sessionWallet)
+  sessionWalletRef.current = sessionWallet
+  const signerRef = useRef(signer)
+  signerRef.current = signer
+
+  const likerAddress = sessionWallet.address || account
 
   const {
     confessions, loading, error, total,
-    submitConfession, likePost, getGasEstimate, refresh, repliesTo,
-  } = useConfessions(activeSigner, likerAddress)
+    likePost, getGasEstimate, refresh, repliesTo,
+  } = useConfessions(signer, likerAddress)
 
   const [showSessionModal, setShowSessionModal] = useState(false)
 
-  const handleReply = useCallback((id, text) =>
-    submitConfession(`↩ #${id}: ${text}`),
-  [submitConfession])
+  // Picks the right signer at call time — no stale closure risk
+  const handleSubmit = useCallback(async (text) => {
+    const sw = sessionWalletRef.current
+    const txSigner = sw.isActive ? sw.signer : signerRef.current
+    if (!txSigner) throw new Error('No signer available')
+    const txHash = await postConfession(txSigner, text)
+    refresh()
+    return txHash
+  }, [refresh])
 
-  // Use session wallet for likes if available, otherwise fall back to MetaMask signer
+  const handleReply = useCallback((id, text) =>
+    handleSubmit(`↩ #${id}: ${text}`),
+  [handleSubmit])
+
   const handleLike = useCallback(async (confessionId) => {
-    if (!sessionWallet.signer || !likerAddress) throw new Error('No signer available')
-    await likePost(sessionWallet.signer, likerAddress, confessionId)
-  }, [sessionWallet.signer, likerAddress, likePost])
+    const sw = sessionWalletRef.current
+    if (!sw.signer || !likerAddress) throw new Error('No signer available')
+    await likePost(sw.signer, likerAddress, confessionId)
+  }, [likerAddress, likePost])
 
   const wallProps = {
     confessions, loading, error, total,
@@ -60,7 +74,7 @@ export default function Home({ wallet }) {
             <ConfessionForm
               account={account}
               isOnBase={isOnBase}
-              onSubmit={submitConfession}
+              onSubmit={handleSubmit}
               onGetGasEstimate={getGasEstimate}
               sessionWallet={sessionWallet}
               onOpenSessionModal={() => setShowSessionModal(true)}
@@ -79,7 +93,6 @@ export default function Home({ wallet }) {
         <ConfessionWall {...wallProps} />
       </div>
 
-      {/* Session wallet modal */}
       <AnimatePresence>
         {showSessionModal && (
           <SessionWalletModal
