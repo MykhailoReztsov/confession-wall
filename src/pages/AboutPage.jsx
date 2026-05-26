@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import Layout from '../components/Layout'
@@ -31,6 +32,15 @@ const container = {
 }
 
 export default function AboutPage({ wallet }) {
+  const [visitorCount, setVisitorCount] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/visitors')
+      .then(r => r.json())
+      .then(d => setVisitorCount(d.count))
+      .catch(() => {})
+  }, [])
+
   return (
     <Layout wallet={wallet}>
       <div className="flex-1 overflow-y-auto">
@@ -58,6 +68,25 @@ export default function AboutPage({ wallet }) {
             >
               A permanent<br />wall of regret.
             </h1>
+
+            {/* Unique wallet counter */}
+            {visitorCount != null && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-baseline gap-3 pt-2"
+              >
+                <span
+                  className="font-['JetBrains_Mono'] text-white/70"
+                  style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 200, letterSpacing: '0.05em' }}
+                >
+                  {visitorCount.toLocaleString()}
+                </span>
+                <span className="font-['JetBrains_Mono'] text-[11px] uppercase tracking-[0.25em] text-white/25">
+                  unique wallets connected
+                </span>
+              </motion.div>
+            )}
           </motion.div>
 
           {/* ── Description ─── */}
@@ -121,15 +150,28 @@ export default function AboutPage({ wallet }) {
             ))}
           </motion.div>
 
-          {/* ── CTA ─── */}
-          <motion.div variants={item} className="text-center pt-4">
+          {/* ── CTA + Twitter ─── */}
+          <motion.div variants={item} className="flex flex-col items-center gap-5 pt-4">
             <Link
               to="/"
               className="inline-block font-['JetBrains_Mono'] text-[11px] uppercase tracking-[0.25em] text-white/30 border border-white/12 px-8 py-3 hover:border-white/35 hover:text-white/60 transition-all duration-300"
             >
               → Enter the Wall
             </Link>
+
+            <a
+              href="https://x.com/anderio_eth"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 font-['JetBrains_Mono'] text-[10px] uppercase tracking-[0.2em] text-white/20 hover:text-white/50 transition-colors duration-200"
+            >
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.735-8.835L1.254 2.25H8.08l4.259 5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+              @anderio_eth
+            </a>
           </motion.div>
+
         </motion.div>
       </div>
     </Layout>

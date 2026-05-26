@@ -56,6 +56,12 @@ export function useWallet() {
     setAccount(address)
     setSigner(s)
     setChainId(Number(network.chainId))
+    // Register unique visitor — fire and forget
+    fetch('/api/visitors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address }),
+    }).catch(() => {})
   }
 
   const connect = useCallback(async () => {
