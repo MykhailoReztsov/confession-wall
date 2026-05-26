@@ -8,6 +8,14 @@ const BIO_TYPES = {
   ],
 }
 
+const HUE_TYPES = {
+  Hue: [
+    { name: 'author',    type: 'address' },
+    { name: 'hue',       type: 'uint256' },
+    { name: 'timestamp', type: 'uint256' },
+  ],
+}
+
 const FOLLOW_TYPES = {
   Follow: [
     { name: 'follower',  type: 'address' },
@@ -36,6 +44,20 @@ export async function signAndSetBio(signer, address, bio) {
     body: JSON.stringify({ type: 'bio', address, bio, signature, timestamp }),
   })
   if (!res.ok) throw new Error((await res.json()).error || 'Failed to save bio')
+  return res.json()
+}
+
+export async function signAndSetHue(signer, address, hue) {
+  const timestamp = Math.floor(Date.now() / 1000)
+  const signature = await signer.signTypedData(DOMAIN, HUE_TYPES, {
+    author: address, hue: BigInt(hue), timestamp: BigInt(timestamp),
+  })
+  const res = await fetch('/api/social', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'hue', address, hue, signature, timestamp }),
+  })
+  if (!res.ok) throw new Error((await res.json()).error || 'Failed to save avatar')
   return res.json()
 }
 

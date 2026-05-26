@@ -6,7 +6,7 @@ import { BaseAvatar } from '../components/ConfessionCard'
 import { shortAddress, timeAgo, copyToClipboard } from '../lib/utils'
 import { fetchAllConfessions } from '../lib/contract'
 import { getStoredHue } from '../hooks/useProfile'
-import { fetchProfile, signAndSetBio, signAndFollow, signAndUnfollow } from '../lib/social'
+import { fetchProfile, signAndSetBio, signAndSetHue, signAndFollow, signAndUnfollow } from '../lib/social'
 import toast from 'react-hot-toast'
 
 const HUE_PRESETS = [220, 270, 320, 10, 45, 150, 190, 0]
@@ -49,8 +49,10 @@ export default function ProfilePage({ wallet }) {
   const [profile, setProfile]   = useState({ bio: '', followerCount: 0, followingCount: 0, isFollowing: false })
   const [profileLoading, setProfileLoading] = useState(true)
 
-  // Avatar hue — local only (cosmetic)
-  const [hue, setHue] = useState(() => getStoredHue(address))
+  // Avatar hue — backed by Redis, cached in localStorage
+  const [hue, setHue]         = useState(() => getStoredHue(address))
+  const [savingHue, setSavingHue] = useState(false)
+  const [hueDirty, setHueDirty]   = useState(false)
 
   // Bio editing
   const [editingBio, setEditingBio] = useState(false)
@@ -75,6 +77,10 @@ export default function ProfilePage({ wallet }) {
       setProfile(data)
       setFollowing(data.isFollowing)
       setBioInput(data.bio)
+      if (data.hue != null) {
+        setHue(data.hue)
+        localStorage.setItem(`ocw:hue:${address?.toLowerCase()}`, JSON.stringify(data.hue))
+      }
     } catch {}
     finally { setProfileLoading(false) }
   }, [address, account])
@@ -94,7 +100,24 @@ export default function ProfilePage({ wallet }) {
 
   const handleHueChange = (h) => {
     setHue(h)
+    setHueDirty(true)
     localStorage.setItem(`ocw:hue:${address?.toLowerCase()}`, JSON.stringify(h))
+  }
+
+  const saveHue = async () => {
+    if (!signer) return toast.error('Connect wallet to save avatar')
+    setSavingHue(true)
+    try {
+      await signAndSetHue(signer, account, hue)
+      setHueDirty(false)
+      toast.success('Avatar saved.')
+    } catch (err) {
+      if (err.message?.includes('rejected') || err.code === 4001) {
+        toast.error('Signature rejected.')
+      } else {
+        toast.error('Failed to save avatar.')
+      }
+    } finally { setSavingHue(false) }
   }
 
   const saveBio = async () => {
@@ -167,8 +190,21 @@ export default function ProfilePage({ wallet }) {
             <div className="flex gap-5 items-start">
               {/* Avatar */}
               <div className="flex flex-col items-center gap-3">
-                <BaseAvatar address={address} size={64} />
-                {isOwn && <HuePicker current={hue} onChange={handleHueChange} />}
+                <BaseAvatar address={address} size={64} hueOverride={hue} />
+                {isOwn && (
+                  <div className="flex flex-col items-center gap-2">
+                    <HuePicker current={hue} onChange={handleHueChange} />
+                    {hueDirty && (
+                      <button
+                        onClick={saveHue}
+                        disabled={savingHue}
+                        className="font-['JetBrains_Mono'] text-[9px] uppercase tracking-widest text-white/40 border border-white/12 px-2 py-0.5 hover:border-white/35 hover:text-white/60 transition-all disabled:opacity-40"
+                      >
+                        {savingHue ? 'Signing…' : 'Save avatar'}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Info */}

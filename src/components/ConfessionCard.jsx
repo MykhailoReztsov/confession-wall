@@ -5,8 +5,8 @@ import { shortAddress, timeAgo } from '../lib/utils'
 import { getStoredHue } from '../hooks/useProfile'
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
-export function BaseAvatar({ address, size = 36, clickable = false, onClick }) {
-  const hue = getStoredHue(address)
+export function BaseAvatar({ address, size = 36, clickable = false, onClick, hueOverride }) {
+  const hue = hueOverride ?? getStoredHue(address)
   return (
     <button
       type="button"

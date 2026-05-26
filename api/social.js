@@ -32,6 +32,14 @@ const FOLLOW_TYPES = {
   ],
 }
 
+const HUE_TYPES = {
+  Hue: [
+    { name: 'author',    type: 'address' },
+    { name: 'hue',       type: 'uint256' },
+    { name: 'timestamp', type: 'uint256' },
+  ],
+}
+
 function stale(timestamp) {
   return Math.abs(Math.floor(Date.now() / 1000) - timestamp) > 300
 }
@@ -48,8 +56,9 @@ export default async function handler(req, res) {
     const myAddress = req.query.myAddress?.toLowerCase()
     if (!address) return res.status(400).json({ error: 'Missing address' })
 
-    const [bio, followerCount, followingCount, isFollowing] = await Promise.all([
+    const [bio, hue, followerCount, followingCount, isFollowing] = await Promise.all([
       redis('GET', `bio:${address}`),
+      redis('GET', `hue:${address}`),
       redis('SCARD', `followers:${address}`),
       redis('SCARD', `following:${address}`),
       myAddress ? redis('SISMEMBER', `followers:${address}`, myAddress) : Promise.resolve(0),
@@ -57,6 +66,7 @@ export default async function handler(req, res) {
 
     return res.json({
       bio:            bio || '',
+      hue:            hue != null ? Number(hue) : null,
       followerCount:  followerCount || 0,
       followingCount: followingCount || 0,
       isFollowing:    !!isFollowing,
@@ -124,6 +134,27 @@ export default async function handler(req, res) {
         redis('SCARD', `following:${f}`),
       ])
       return res.json({ followerCount, followingCount })
+    }
+
+    // ── Set hue ──
+    if (type === 'hue') {
+      const { address, hue, signature } = req.body
+      if (!address || hue == null || !signature) return res.status(400).json({ error: 'Missing fields' })
+      if (!Number.isInteger(hue) || hue < 0 || hue > 359) return res.status(400).json({ error: 'Invalid hue' })
+
+      let recovered
+      try {
+        recovered = ethers.verifyTypedData(DOMAIN, HUE_TYPES, {
+          author: address, hue: BigInt(hue), timestamp: BigInt(timestamp),
+        }, signature)
+      } catch { return res.status(401).json({ error: 'Invalid signature' }) }
+
+      if (recovered.toLowerCase() !== address.toLowerCase()) {
+        return res.status(401).json({ error: 'Signature mismatch' })
+      }
+
+      await redis('SET', `hue:${address.toLowerCase()}`, hue)
+      return res.json({ ok: true })
     }
 
     return res.status(400).json({ error: 'Unknown type' })
