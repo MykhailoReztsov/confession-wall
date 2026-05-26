@@ -1,7 +1,7 @@
 import { ethers } from 'ethers'
 
-const RPC_URL          = process.env.VITE_RPC_URL || 'https://mainnet.base.org'
-// Hardcoded since VITE_* vars may not be available at serverless runtime
+// Alchemy free tier limits eth_getLogs to 10 blocks — use the public Base RPC instead
+const RPC_URL          = 'https://mainnet.base.org'
 const CONTRACT_ADDRESS = process.env.VITE_CONTRACT_ADDRESS || '0x25DCf5f1c74b7c01c55d38E3bDd09eDc216c6d97'
 
 const EVENT_SIG = ethers.id('NewConfession(uint256,address,string,uint256)')
