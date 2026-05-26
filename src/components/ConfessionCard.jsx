@@ -106,7 +106,7 @@ function ReplyForm({ onSubmit, onCancel, disabled }) {
 }
 
 // ─── Main confession card ─────────────────────────────────────────────────────
-export default function ConfessionCard({ confession, index, account, isOnBase, onReply, onLike, repliesTo }) {
+export default function ConfessionCard({ confession, index, account, isOnBase, onReply, onLike, repliesTo, isFollowed }) {
   const navigate = useNavigate()
   const [repliesOpen, setRepliesOpen] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -116,6 +116,7 @@ export default function ConfessionCard({ confession, index, account, isOnBase, o
   const replies = repliesTo ? repliesTo(confession.id) : []
   const canReply = account && isOnBase
   const liked = confession.liked ?? false
+  const isNew = confession.isNew ?? false
 
   const handleLike = async () => {
     if (!onLike || liking || liked) return
@@ -136,10 +137,15 @@ export default function ConfessionCard({ confession, index, account, isOnBase, o
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 8 }}
+      initial={isNew ? { opacity: 0, y: -18 } : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, delay: Math.min(index * 0.03, 0.18) }}
-      className="border-b border-white/5 px-5 py-5 hover:bg-white/[0.01] transition-colors"
+      transition={isNew
+        ? { duration: 0.4, type: 'spring', stiffness: 380, damping: 28 }
+        : { duration: 0.28, delay: Math.min(index * 0.03, 0.18) }
+      }
+      className={`border-b border-white/5 px-5 py-5 hover:bg-white/[0.01] transition-colors relative ${
+        isFollowed ? 'border-l-2 border-l-white/20 bg-white/[0.012] pl-[calc(1.25rem-2px)]' : ''
+      }`}
     >
       {/* ── Post header + body ── */}
       <div className="flex gap-3">

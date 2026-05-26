@@ -1,8 +1,10 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useConfessions } from '../hooks/useConfessions'
 import { useSessionWallet } from '../hooks/useSessionWallet'
+import { useChainSounds } from '../hooks/useChainSounds'
 import { postConfession } from '../lib/contract'
+import { fetchFollowing } from '../lib/social'
 import Layout from '../components/Layout'
 import Hero from '../components/Hero'
 import ConfessionForm from '../components/ConfessionForm'
@@ -13,6 +15,7 @@ import SessionWalletModal from '../components/SessionWalletModal'
 export default function Home({ wallet }) {
   const { account, signer, isOnBase } = wallet
   const sessionWallet = useSessionWallet()
+  const { playNewPost } = useChainSounds()
 
   // Keep refs so callbacks always read the latest values without stale closures
   const sessionWalletRef = useRef(sessionWallet)
@@ -24,8 +27,20 @@ export default function Home({ wallet }) {
 
   const {
     confessions, loading, error, total,
-    likePost, getGasEstimate, refresh, repliesTo,
+    likePost, getGasEstimate, refresh, repliesTo, onNewPosts,
   } = useConfessions(signer, likerAddress)
+
+  // Following list for the connected account
+  const [followingAddresses, setFollowingAddresses] = useState([])
+  useEffect(() => {
+    if (!account) return
+    fetchFollowing(account).then(list => setFollowingAddresses(list)).catch(() => {})
+  }, [account])
+
+  // Wire sounds to live-poll new post events
+  useEffect(() => {
+    onNewPosts(() => playNewPost())
+  }, [onNewPosts, playNewPost])
 
   const [showSessionModal, setShowSessionModal] = useState(false)
 
@@ -56,6 +71,7 @@ export default function Home({ wallet }) {
     onLike: handleLike,
     onRefresh: refresh,
     repliesTo,
+    followingAddresses,
   }
 
   return (

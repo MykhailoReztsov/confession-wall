@@ -4,8 +4,25 @@ import ConfessionCard from './ConfessionCard'
 export default function ConfessionWall({
   confessions, loading, error, total, onRefresh,
   account, isOnBase, onReply, onLike, repliesTo,
+  followingAddresses,
 }) {
+  const followSet = followingAddresses instanceof Set
+    ? followingAddresses
+    : new Set((followingAddresses ?? []).map(a => a.toLowerCase()))
+
   const topLevel = confessions.filter(c => !c.text.startsWith('↩ #'))
+
+  // New posts from followed users bubble to top, then followed, then chronological
+  const sorted = [...topLevel].sort((a, b) => {
+    const score = c => {
+      if (c.isNew && followSet.has(c.author.toLowerCase())) return 3
+      if (c.isNew) return 2
+      if (followSet.has(c.author.toLowerCase())) return 1
+      return 0
+    }
+    const diff = score(b) - score(a)
+    return diff !== 0 ? diff : b.id - a.id
+  })
 
   return (
     <section className="flex flex-col h-full overflow-hidden">
@@ -99,7 +116,7 @@ export default function ConfessionWall({
 
         {!loading && (
           <AnimatePresence>
-            {topLevel.map((confession, index) => (
+            {sorted.map((confession, index) => (
               <ConfessionCard
                 key={confession.id}
                 confession={confession}
@@ -109,6 +126,7 @@ export default function ConfessionWall({
                 onReply={onReply}
                 onLike={onLike}
                 repliesTo={repliesTo}
+                isFollowed={followSet.has(confession.author.toLowerCase())}
               />
             ))}
           </AnimatePresence>

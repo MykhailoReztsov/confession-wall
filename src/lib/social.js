@@ -25,6 +25,13 @@ const FOLLOW_TYPES = {
   ],
 }
 
+export async function fetchFollowing(address) {
+  const res = await fetch(`/api/social?following=${address}`)
+  if (!res.ok) return []
+  const data = await res.json()
+  return data.following || []
+}
+
 export async function fetchProfile(address, myAddress) {
   const params = new URLSearchParams({ address })
   if (myAddress) params.set('myAddress', myAddress)

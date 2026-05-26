@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ethers } from 'ethers'
 import Layout from '../components/Layout'
 import { BaseAvatar } from '../components/ConfessionCard'
 import { shortAddress, timeAgo, copyToClipboard } from '../lib/utils'
-import { fetchAllConfessions } from '../lib/contract'
-import { getStoredHue } from '../hooks/useProfile'
+import { fetchAllConfessions, fetchGasBurnedByAddress } from '../lib/contract'
+import { defaultHue, getStoredHue } from '../hooks/useProfile'
 import { fetchProfile, signAndSetBio, signAndSetHue, signAndFollow, signAndUnfollow } from '../lib/social'
 import toast from 'react-hot-toast'
 
@@ -30,11 +31,50 @@ function HuePicker({ current, onChange }) {
   )
 }
 
-function StatPill({ label, value }) {
+// Counts up from 0 to `to` over `duration` ms
+function CountUp({ to, format = v => v, duration = 1200 }) {
+  const [val, setVal] = useState(0)
+  useEffect(() => {
+    if (to == null || to === 0) return
+    const start = Date.now()
+    const target = Number(to)
+    const tick = () => {
+      const t = Math.min((Date.now() - start) / duration, 1)
+      const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
+      setVal(Math.floor(eased * target))
+      if (t < 1) requestAnimationFrame(tick)
+      else setVal(target)
+    }
+    requestAnimationFrame(tick)
+  }, [to, duration])
+  return <>{format(val)}</>
+}
+
+function StatPill({ label, value, loading: lding }) {
   return (
     <div className="flex flex-col items-center gap-1 px-5 py-3 border border-white/8 glass-panel">
       <span className="font-['JetBrains_Mono'] text-[9px] uppercase tracking-[0.2em] text-white/30">{label}</span>
-      <span className="font-['JetBrains_Mono'] text-base text-white/70">{value}</span>
+      <span className="font-['JetBrains_Mono'] text-base text-white/70">
+        {lding ? <span className="text-white/25">…</span> : value}
+      </span>
+    </div>
+  )
+}
+
+function GasPill({ weiValue, loading: lding }) {
+  const gwei = weiValue != null ? Number(ethers.formatUnits(weiValue, 'gwei')) : null
+  return (
+    <div className="flex flex-col items-center gap-1 px-5 py-3 border border-white/8 glass-panel">
+      <span className="font-['JetBrains_Mono'] text-[9px] uppercase tracking-[0.2em] text-white/30">Gas Burned</span>
+      <span className="font-['JetBrains_Mono'] text-base text-white/70">
+        {lding
+          ? <span className="text-white/25">…</span>
+          : gwei == null
+            ? '—'
+            : <><CountUp to={Math.round(gwei)} duration={1400} format={v => v.toLocaleString()} />{' '}
+              <span className="text-[10px] text-white/35">gwei</span></>
+        }
+      </span>
     </div>
   )
 }
@@ -50,7 +90,7 @@ export default function ProfilePage({ wallet }) {
   const [profileLoading, setProfileLoading] = useState(true)
 
   // Avatar hue — backed by Redis, cached in localStorage
-  const [hue, setHue]         = useState(() => getStoredHue(address))
+  const [hue, setHue]             = useState(() => getStoredHue(address))
   const [savingHue, setSavingHue] = useState(false)
   const [hueDirty, setHueDirty]   = useState(false)
 
@@ -66,6 +106,10 @@ export default function ProfilePage({ wallet }) {
   // Confessions
   const [confessions, setConfessions] = useState([])
   const [loadingPosts, setLoadingPosts] = useState(true)
+
+  // Gas burned
+  const [gasBurned, setGasBurned]       = useState(null)
+  const [gasLoading, setGasLoading]     = useState(true)
 
   const [copied, setCopied] = useState(false)
 
@@ -95,6 +139,18 @@ export default function ProfilePage({ wallet }) {
       .then(all => { if (alive) setConfessions(all.filter(c => c.author.toLowerCase() === address?.toLowerCase())) })
       .catch(() => { if (alive) setConfessions([]) })
       .finally(() => { if (alive) setLoadingPosts(false) })
+    return () => { alive = false }
+  }, [address])
+
+  // Load gas burned separately (slower — needs receipts)
+  useEffect(() => {
+    if (!address) return
+    let alive = true
+    setGasLoading(true)
+    fetchGasBurnedByAddress(address)
+      .then(val => { if (alive) setGasBurned(val) })
+      .catch(() => { if (alive) setGasBurned(0n) })
+      .finally(() => { if (alive) setGasLoading(false) })
     return () => { alive = false }
   }, [address])
 
@@ -141,7 +197,6 @@ export default function ProfilePage({ wallet }) {
     if (!signer || !account) return toast.error('Connect wallet to follow')
     setFollowLoading(true)
     const wasFollowing = following
-    // Optimistic
     setFollowing(!wasFollowing)
     setProfile(p => ({
       ...p,
@@ -154,7 +209,6 @@ export default function ProfilePage({ wallet }) {
         await signAndFollow(signer, account, address)
       }
     } catch (err) {
-      // Revert on failure
       setFollowing(wasFollowing)
       setProfile(p => ({
         ...p,
@@ -175,6 +229,9 @@ export default function ProfilePage({ wallet }) {
   }
 
   const topLevel = confessions.filter(c => !c.text.startsWith('↩ #'))
+  const oldest   = topLevel.length
+    ? topLevel.reduce((a, b) => a.timestamp < b.timestamp ? a : b)
+    : null
 
   return (
     <Layout wallet={wallet}>
@@ -246,10 +303,16 @@ export default function ProfilePage({ wallet }) {
                 </div>
 
                 {/* Stats */}
-                <div className="flex gap-3 mb-4">
+                <div className="flex gap-3 mb-4 flex-wrap">
                   <StatPill label="Confessions" value={topLevel.length} />
-                  <StatPill label="Following"   value={profileLoading ? '…' : profile.followingCount} />
-                  <StatPill label="Followers"   value={profileLoading ? '…' : profile.followerCount}  />
+                  <StatPill label="Following"   value={profileLoading ? undefined : profile.followingCount} loading={profileLoading} />
+                  <StatPill label="Followers"   value={profileLoading ? undefined : profile.followerCount}  loading={profileLoading} />
+                  <GasPill  weiValue={gasBurned} loading={gasLoading} />
+                  <StatPill
+                    label="Oldest"
+                    value={oldest ? timeAgo(oldest.timestamp) : '—'}
+                    loading={loadingPosts}
+                  />
                 </div>
 
                 {/* Bio */}

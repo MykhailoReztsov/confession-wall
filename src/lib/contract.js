@@ -90,6 +90,28 @@ export async function estimateGasCost(signer, text) {
   }
 }
 
+// Sum of gas fees paid for all NewConfession txs by this address (wei as BigInt)
+export async function fetchGasBurnedByAddress(address) {
+  const contract = getReadContract()
+  const provider = getReadProvider()
+  try {
+    const filter = contract.filters.NewConfession(null, address)
+    const events = await contract.queryFilter(filter)
+    if (!events.length) return 0n
+    const slice = events.slice(-50) // cap to avoid too many RPC calls
+    const results = await Promise.allSettled(
+      slice.map(e => provider.getTransactionReceipt(e.transactionHash))
+    )
+    let total = 0n
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value?.fee != null) total += r.value.fee
+    }
+    return total
+  } catch {
+    return 0n
+  }
+}
+
 // Normalize raw contract tuple arrays into plain objects
 function parseConfessions(raw) {
   return raw.map((c) => ({

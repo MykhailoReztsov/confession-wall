@@ -52,6 +52,13 @@ export default async function handler(req, res) {
 
   // ── GET /api/social?address=0x...&myAddress=0x... ──────────────────────────
   if (req.method === 'GET') {
+    // ?following=0x... → returns the set of addresses this user follows
+    if (req.query.following) {
+      const addr = req.query.following.toLowerCase()
+      const list = await redis('SMEMBERS', `following:${addr}`)
+      return res.json({ following: list || [] })
+    }
+
     const address   = req.query.address?.toLowerCase()
     const myAddress = req.query.myAddress?.toLowerCase()
     if (!address) return res.status(400).json({ error: 'Missing address' })
