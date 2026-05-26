@@ -92,19 +92,27 @@ export async function estimateGasCost(signer, text) {
 
 // Sum of gas fees paid for all NewConfession txs by this address (wei as BigInt)
 export async function fetchGasBurnedByAddress(address) {
-  const contract = getReadContract()
   const provider = getReadProvider()
   try {
-    const filter = contract.filters.NewConfession(null, address)
-    const events = await contract.queryFilter(filter)
-    if (!events.length) return 0n
-    const slice = events.slice(-50) // cap to avoid too many RPC calls
-    const results = await Promise.allSettled(
-      slice.map(e => provider.getTransactionReceipt(e.transactionHash))
+    const normalized = ethers.getAddress(address)
+    const logs = await provider.getLogs({
+      address: CONTRACT_ADDRESS,
+      topics: [
+        ethers.id('NewConfession(uint256,address,string,uint256)'),
+        null,                                    // any id
+        ethers.zeroPadValue(normalized, 32),     // author topic
+      ],
+      fromBlock: 'earliest',
+      toBlock:   'latest',
+    })
+    if (!logs.length) return 0n
+    const receipts = await Promise.allSettled(
+      logs.slice(-50).map(log => provider.getTransactionReceipt(log.transactionHash))
     )
     let total = 0n
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value?.fee != null) total += r.value.fee
+    for (const r of receipts) {
+      if (r.status !== 'fulfilled' || !r.value) continue
+      try { total += r.value.gasUsed * r.value.gasPrice } catch {}
     }
     return total
   } catch {

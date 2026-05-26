@@ -63,16 +63,19 @@ function StatPill({ label, value, loading: lding }) {
 
 function GasPill({ weiValue, loading: lding }) {
   const gwei = weiValue != null ? Number(ethers.formatUnits(weiValue, 'gwei')) : null
+  const gweiRounded = gwei != null ? (gwei >= 100 ? Math.round(gwei) : Math.round(gwei * 10) / 10) : null
   return (
     <div className="flex flex-col items-center gap-1 px-5 py-3 border border-white/8 glass-panel">
       <span className="font-['JetBrains_Mono'] text-[9px] uppercase tracking-[0.2em] text-white/30">Gas Burned</span>
       <span className="font-['JetBrains_Mono'] text-base text-white/70">
         {lding
           ? <span className="text-white/25">…</span>
-          : gwei == null
+          : gweiRounded == null
             ? '—'
-            : <><CountUp to={Math.round(gwei)} duration={1400} format={v => v.toLocaleString()} />{' '}
-              <span className="text-[10px] text-white/35">gwei</span></>
+            : gweiRounded === 0
+              ? <span className="text-white/30">0 <span className="text-[10px]">gwei</span></span>
+              : <><CountUp to={gweiRounded} duration={1400} format={v => v.toLocaleString()} />{' '}
+                <span className="text-[10px] text-white/35">gwei</span></>
         }
       </span>
     </div>
