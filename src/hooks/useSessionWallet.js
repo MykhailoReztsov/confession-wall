@@ -3,6 +3,10 @@ import { ethers } from 'ethers'
 
 const PK_KEY = 'ocw:session_pk'
 
+// Base GasPriceOracle — tells us the exact L1 data fee for a given raw tx
+const GAS_ORACLE = '0x420000000000000000000000000000000000000F'
+const GAS_ORACLE_ABI = ['function getL1Fee(bytes) view returns (uint256)']
+
 function makeProvider() {
   return new ethers.JsonRpcProvider(
     import.meta.env.VITE_RPC_URL || 'https://mainnet.base.org'
@@ -19,7 +23,7 @@ function initWallet() {
 }
 
 export function useSessionWallet() {
-  const [wallet]              = useState(initWallet)   // synchronous — never null
+  const [wallet]              = useState(initWallet)
   const [balance, setBalance] = useState(null)
 
   const refreshBalance = useCallback(async () => {
@@ -39,25 +43,39 @@ export function useSessionWallet() {
 
   const withdraw = useCallback(async (toAddress) => {
     if (!wallet) throw new Error('Wallet not ready')
-    // Fetch fresh balance and fee data in parallel
-    const [freshBalance, feeData] = await Promise.all([
+
+    const [freshBalance, feeData, nonce] = await Promise.all([
       wallet.provider.getBalance(wallet.address),
       wallet.provider.getFeeData(),
+      wallet.provider.getTransactionCount(wallet.address),
     ])
+
     const maxFee      = feeData.maxFeePerGas ?? feeData.gasPrice ?? 2000000000n
     const priorityFee = feeData.maxPriorityFeePerGas ?? 1000000n
     const gasLimit    = 21000n
-    const l2GasCost   = maxFee * gasLimit
+    const l2Fee       = maxFee * gasLimit
 
-    // On Base (OP Stack), the sequencer also deducts an L1 data fee on top of
-    // the L2 gas cost. Reserve 3× the L2 gas cost so the submitted value +
-    // actual gas is safely below the on-chain balance even with L1 fee overhead.
-    const totalReserve = l2GasCost * 3n
-    if (freshBalance <= totalReserve) throw new Error('Balance too low to cover gas')
+    // Ask Base's L1 oracle for the exact L1 data fee for this transaction.
+    // We build the unsigned tx to measure its byte size — the signature adds
+    // ~65 bytes, so we pad the estimate by 20% to stay safe.
+    let l1Fee = l2Fee // sane fallback if oracle call fails
+    try {
+      const oracle  = new ethers.Contract(GAS_ORACLE, GAS_ORACLE_ABI, wallet.provider)
+      const dummyTx = ethers.Transaction.from({
+        type: 2, chainId: 8453n, nonce,
+        to: toAddress, value: 1n,   // value doesn't affect byte size
+        gasLimit, maxFeePerGas: maxFee, maxPriorityFeePerGas: priorityFee,
+      })
+      const raw = dummyTx.unsignedSerialized
+      l1Fee = (await oracle.getL1Fee(raw)) * 12n / 10n  // +20% for signature bytes
+    } catch {}
+
+    const totalFee = l2Fee + l1Fee
+    if (freshBalance <= totalFee) throw new Error('Balance too low to cover gas')
 
     const tx = await wallet.sendTransaction({
       to: toAddress,
-      value: freshBalance - totalReserve,
+      value: freshBalance - totalFee,
       gasLimit,
       maxFeePerGas:         maxFee,
       maxPriorityFeePerGas: priorityFee,
@@ -73,7 +91,7 @@ export function useSessionWallet() {
     address:  wallet?.address ?? null,
     balance,
     isActive,
-    signer:   wallet,   // always available for signing (no ETH needed for signatures)
+    signer:   wallet,
     withdraw,
     refreshBalance,
   }
