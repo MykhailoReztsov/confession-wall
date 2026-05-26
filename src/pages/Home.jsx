@@ -13,10 +13,15 @@ export default function Home({ wallet }) {
   const { account, signer, isOnBase } = wallet
   const sessionWallet = useSessionWallet()
 
+  // Use session wallet for posting when funded, otherwise fall back to MetaMask
+  const activeSigner  = sessionWallet.isActive ? sessionWallet.signer : signer
+  // Likes are always signed by the session wallet key (no ETH needed)
+  const likerAddress  = sessionWallet.address || account
+
   const {
     confessions, loading, error, total,
     submitConfession, likePost, getGasEstimate, refresh, repliesTo,
-  } = useConfessions(signer, account)
+  } = useConfessions(activeSigner, likerAddress)
 
   const [showSessionModal, setShowSessionModal] = useState(false)
 
@@ -26,11 +31,9 @@ export default function Home({ wallet }) {
 
   // Use session wallet for likes if available, otherwise fall back to MetaMask signer
   const handleLike = useCallback(async (confessionId) => {
-    const likeSigner  = sessionWallet.signer || signer
-    const likerAddr   = sessionWallet.address || account
-    if (!likeSigner || !likerAddr) throw new Error('No signer available')
-    await likePost(likeSigner, likerAddr, confessionId)
-  }, [sessionWallet.signer, sessionWallet.address, signer, account, likePost])
+    if (!sessionWallet.signer || !likerAddress) throw new Error('No signer available')
+    await likePost(sessionWallet.signer, likerAddress, confessionId)
+  }, [sessionWallet.signer, likerAddress, likePost])
 
   const wallProps = {
     confessions, loading, error, total,
