@@ -9,18 +9,18 @@ function makeProvider() {
   )
 }
 
-export function useSessionWallet() {
-  const [wallet, setWallet]   = useState(null)
-  const [balance, setBalance] = useState(null)
+function initWallet() {
+  let pk = localStorage.getItem(PK_KEY)
+  if (!pk) {
+    pk = ethers.Wallet.createRandom().privateKey
+    localStorage.setItem(PK_KEY, pk)
+  }
+  return new ethers.Wallet(pk, makeProvider())
+}
 
-  useEffect(() => {
-    let pk = localStorage.getItem(PK_KEY)
-    if (!pk) {
-      pk = ethers.Wallet.createRandom().privateKey
-      localStorage.setItem(PK_KEY, pk)
-    }
-    setWallet(new ethers.Wallet(pk, makeProvider()))
-  }, [])
+export function useSessionWallet() {
+  const [wallet]              = useState(initWallet)   // synchronous — never null
+  const [balance, setBalance] = useState(null)
 
   const refreshBalance = useCallback(async () => {
     if (!wallet) return
