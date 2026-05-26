@@ -38,18 +38,20 @@ export function useSessionWallet() {
   }, [wallet, refreshBalance])
 
   const withdraw = useCallback(async (toAddress) => {
-    if (!wallet || balance === null) throw new Error('Wallet not ready')
-    const feeData = await wallet.provider.getFeeData()
-    // Base is EIP-1559 — node reserves maxFeePerGas×gasLimit for validation,
-    // so we must use that for the cost calculation, not the lower gasPrice.
+    if (!wallet) throw new Error('Wallet not ready')
+    // Fetch fresh balance at call time — cached state can be up to 8s stale
+    const [freshBalance, feeData] = await Promise.all([
+      wallet.provider.getBalance(wallet.address),
+      wallet.provider.getFeeData(),
+    ])
     const maxFee      = feeData.maxFeePerGas ?? feeData.gasPrice ?? 2000000000n
     const priorityFee = feeData.maxPriorityFeePerGas ?? 1000000n
     const gasLimit    = 21000n
     const gasCost     = maxFee * gasLimit
-    if (balance <= gasCost) throw new Error('Balance too low to cover gas')
+    if (freshBalance <= gasCost) throw new Error('Balance too low to cover gas')
     const tx = await wallet.sendTransaction({
       to: toAddress,
-      value: balance - gasCost,
+      value: freshBalance - gasCost,
       gasLimit,
       maxFeePerGas:         maxFee,
       maxPriorityFeePerGas: priorityFee,
@@ -57,7 +59,7 @@ export function useSessionWallet() {
     await tx.wait()
     refreshBalance()
     return tx.hash
-  }, [wallet, balance, refreshBalance])
+  }, [wallet, refreshBalance])
 
   const isActive = balance !== null && balance > 0n
 
