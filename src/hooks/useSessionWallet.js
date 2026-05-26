@@ -39,7 +39,7 @@ export function useSessionWallet() {
 
   const withdraw = useCallback(async (toAddress) => {
     if (!wallet) throw new Error('Wallet not ready')
-    // Fetch fresh balance at call time — cached state can be up to 8s stale
+    // Fetch fresh balance and fee data in parallel
     const [freshBalance, feeData] = await Promise.all([
       wallet.provider.getBalance(wallet.address),
       wallet.provider.getFeeData(),
@@ -47,11 +47,17 @@ export function useSessionWallet() {
     const maxFee      = feeData.maxFeePerGas ?? feeData.gasPrice ?? 2000000000n
     const priorityFee = feeData.maxPriorityFeePerGas ?? 1000000n
     const gasLimit    = 21000n
-    const gasCost     = maxFee * gasLimit
-    if (freshBalance <= gasCost) throw new Error('Balance too low to cover gas')
+    const l2GasCost   = maxFee * gasLimit
+
+    // On Base (OP Stack), the sequencer also deducts an L1 data fee on top of
+    // the L2 gas cost. Reserve 3× the L2 gas cost so the submitted value +
+    // actual gas is safely below the on-chain balance even with L1 fee overhead.
+    const totalReserve = l2GasCost * 3n
+    if (freshBalance <= totalReserve) throw new Error('Balance too low to cover gas')
+
     const tx = await wallet.sendTransaction({
       to: toAddress,
-      value: freshBalance - gasCost,
+      value: freshBalance - totalReserve,
       gasLimit,
       maxFeePerGas:         maxFee,
       maxPriorityFeePerGas: priorityFee,
