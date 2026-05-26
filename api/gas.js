@@ -1,7 +1,8 @@
 import { ethers } from 'ethers'
 
-const RPC_URL         = process.env.VITE_RPC_URL        || 'https://mainnet.base.org'
-const CONTRACT_ADDRESS = process.env.VITE_CONTRACT_ADDRESS
+const RPC_URL          = process.env.VITE_RPC_URL || 'https://mainnet.base.org'
+// Hardcoded since VITE_* vars may not be available at serverless runtime
+const CONTRACT_ADDRESS = process.env.VITE_CONTRACT_ADDRESS || '0x25DCf5f1c74b7c01c55d38E3bDd09eDc216c6d97'
 
 const EVENT_SIG = ethers.id('NewConfession(uint256,address,string,uint256)')
 
@@ -17,17 +18,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const provider  = new ethers.JsonRpcProvider(RPC_URL)
+    const provider   = new ethers.JsonRpcProvider(RPC_URL)
     const normalized = ethers.getAddress(address)
 
     const logs = await provider.getLogs({
       address: CONTRACT_ADDRESS,
-      topics: [EVENT_SIG, null, ethers.zeroPadValue(normalized, 32)],
-      fromBlock: 'earliest',
+      topics:  [EVENT_SIG, null, ethers.zeroPadValue(normalized, 32)],
+      fromBlock: 0,
       toBlock:   'latest',
     })
 
-    if (!logs.length) return res.json({ gwei: 0 })
+    if (!logs.length) return res.json({ gwei: 0, logs: 0 })
 
     const receipts = await Promise.allSettled(
       logs.slice(-50).map(log => provider.getTransactionReceipt(log.transactionHash))
@@ -39,8 +40,9 @@ export default async function handler(req, res) {
       try { totalWei += r.value.gasUsed * r.value.gasPrice } catch {}
     }
 
-    return res.json({ gwei: Number(ethers.formatUnits(totalWei, 'gwei')) })
+    return res.json({ gwei: Number(ethers.formatUnits(totalWei, 'gwei')), logs: logs.length })
   } catch (err) {
+    console.error('[gas api]', err.message)
     return res.status(500).json({ error: err.message, gwei: 0 })
   }
 }
